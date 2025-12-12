@@ -4,11 +4,62 @@ import { WeatherData, SearchResult, Coordinates, PhotoAnalysis } from "../types"
 const SYSTEM_INSTRUCTION = `You are GlareMyAurora, an expert in space weather, physics, and night photography. 
 Your goal is to provide accurate aurora forecasts and safety advice.`;
 
+// Mock Data for Demo Mode
+const MOCK_WEATHER_DATA: WeatherData = {
+  kpIndex: 5.33,
+  solarWindSpeed: 520,
+  solarWindDensity: 12.5,
+  bz: -6.2,
+  probabilityScore: 78,
+  summary: "⚠️ DEMO MODE: API Key not detected. Displaying simulated storm conditions. \n\nA moderate geomagnetic storm (G2) is in progress due to a Coronal Hole High Speed Stream (CH HSS). High-latitude observers should have excellent visibility.",
+  visibilityChance: "High",
+  tonightsWindow: "22:00 - 02:00 Local",
+  nearestDetection: {
+    location: "Tromsø, Norway",
+    status: "Visual Sighting Confirmed"
+  },
+  solarFlare: {
+    class: "M2.4",
+    time: "14:30 UTC",
+    impact: "Minor Radio Blackout (R1)",
+    region: "AR3664",
+    eta: "Tomorrow 08:00 UTC"
+  },
+  forecast: [
+    { time: "Now", kp: 5 },
+    { time: "+1h", kp: 6 },
+    { time: "+2h", kp: 5 },
+    { time: "+3h", kp: 4 },
+    { time: "+4h", kp: 3 },
+    { time: "+5h", kp: 3 }
+  ],
+  timestamp: new Date().toISOString(),
+  locationName: "Simulated Sector (Demo)"
+};
+
+const MOCK_PHOTO_ANALYSIS: PhotoAnalysis = {
+  cloudCover: "Partly Cloudy (Simulated)",
+  darknessRating: "Bortle 4 (Rural Transition)",
+  recommendedSettings: {
+    iso: "1600 - 3200",
+    shutterSpeed: "8s - 15s",
+    aperture: "f/2.8 or lower",
+    focus: "Infinity (Manual)"
+  },
+  checklist: [
+    "Use a tripod (Mandatory)",
+    "Set 2s timer to avoid shake",
+    "Shoot in RAW format"
+  ],
+  feedback: "Demo Mode: Great conditions simulated! Look for gaps in the clouds to the North."
+};
+
 // Helper to initialize AI lazily
-const getAI = () => {
+const getAI = (): GoogleGenAI | null => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) {
-    throw new Error("API Key not found. Please check your environment configuration.");
+    console.warn("API Key not found. Falling back to Demo Mode.");
+    return null;
   }
   return new GoogleGenAI({ apiKey });
 };
@@ -30,6 +81,21 @@ const extractJson = (text: string): any => {
 // --- Space Weather Service ---
 
 export const fetchSpaceWeather = async (coords: Coordinates): Promise<SearchResult<WeatherData>> => {
+  const ai = getAI();
+  
+  // FALLBACK: Return Mock Data if AI is not available
+  if (!ai) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          data: MOCK_WEATHER_DATA,
+          rawText: MOCK_WEATHER_DATA.summary,
+          sources: [{ uri: "https://www.swpc.noaa.gov/", title: "NOAA Space Weather (Simulated)" }]
+        });
+      }, 1500); // Fake delay for realism
+    });
+  }
+
   const model = "gemini-2.5-flash";
   const prompt = `
     Perform a Google Search to find the REAL-TIME current space weather conditions including:
@@ -87,7 +153,6 @@ export const fetchSpaceWeather = async (coords: Coordinates): Promise<SearchResu
   `;
 
   try {
-    const ai = getAI();
     const response: GenerateContentResponse = await ai.models.generateContent({
       model,
       contents: prompt,
@@ -125,8 +190,15 @@ export const analyzeSkyPhoto = async (
   base64Image: string, 
   deviceType: string
 ): Promise<PhotoAnalysis | null> => {
-  const model = "gemini-2.5-flash";
+  const ai = getAI();
   
+  if (!ai) {
+    return new Promise((resolve) => {
+      setTimeout(() => resolve(MOCK_PHOTO_ANALYSIS), 2000);
+    });
+  }
+
+  const model = "gemini-2.5-flash";
   const prompt = `
     Analyze this photo of the sky/environment for Aurora photography suitability.
     Device being used: ${deviceType}
@@ -152,7 +224,6 @@ export const analyzeSkyPhoto = async (
   `;
 
   try {
-    const ai = getAI();
     const response = await ai.models.generateContent({
       model,
       contents: {
@@ -184,6 +255,18 @@ export const analyzeSkyPhoto = async (
 
 export const createChatSession = () => {
   const ai = getAI();
+
+  if (!ai) {
+    // Return a mock chat session object that mimics the SDK
+    return {
+      sendMessage: async (msg: { message: string }) => {
+        return {
+          text: "I am currently in Demo Mode because the API Key is missing. I cannot process live queries, but I can confirm your systems are operational! 🚀"
+        };
+      }
+    };
+  }
+
   return ai.chats.create({
     model: "gemini-2.5-flash",
     config: {
