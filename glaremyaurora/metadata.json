@@ -1,0 +1,7 @@
+{
+  "name": "GlareMyAurora",
+  "description": "Real-time space weather alerts, aurora forecasts, and photography guidance.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
