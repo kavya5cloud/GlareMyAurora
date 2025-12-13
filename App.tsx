@@ -9,7 +9,7 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DASHBOARD);
   const [location, setLocation] = useState<Coordinates | null>(null);
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
-  const [rawText, setRawText] = useState<string>('');
+  const [rawText, setRawText] = useState<string>(''); 
   const [sources, setSources] = useState<GroundingSource[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [locationError, setLocationError] = useState<string | null>(null);
